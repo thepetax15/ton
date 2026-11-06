@@ -123,6 +123,67 @@ tapi ini satu-satunya cacat nyata yang ditemukan dan wajib diperbaiki.
   di log untuk lokasi persisnya; S2/S3 tidak menyimpulkan apa-apa.
 - Kontrol (R1/S1/S4) FAIL → harness salah.
 
+## Run #6 — diagnosa: patch STALE, bukan crash baru (2026-11-06, run 42257911684, FAILED 22m31s)
+
+**Fakta:** cmake exit 0, build exit 0, full-run exit 139 (SIGSEGV).
+12 test lama PASS; 5 test baru SEMUA SIGSEGV, frame faulting sama
+`+0x1e92a0`. Log smoke test hanya `0 test(s) passed` (17 byte) — filter
+tidak me-match test apa pun. Tidak ada satu pun marker `[t1-1]` di log
+crash.
+
+**Penyebab — TERBUKTI dari isi branch (bukan tebakan):** binary run #6
+dibangun dari patch test **versi LAMA**. Step "Publish STARTED marker"
+(workflow v3) menjalankan `git checkout -B results origin/results` di
+checkout harness — branch `results` dicabang saat run #1 dan `patches/`-nya
+masih berisi patch test ORIGINAL: 5 test baru (tanpa smoke), tag validator
+`0x11`, tanpa marker `[t1-1]` sama sekali. Step "Apply T1-1 patches" lalu
+membaca `../patches/` dari tree branch `results` itu. Bukti:
+`patches/test-global-balance-calculator.cpp.patch` di branch `results`
+(304 baris, 0× `FetchMcStateSmoke`, masih `0x11`) vs di branch
+`t1-1-unit-test` (350 baris, smoke test ada, tag `0x12`). Patch produksi
+(.cpp/.hpp) di kedua branch IDENTIK — hanya patch test yang stale.
+Simulasi git lokal (bare remote + clone, kedua branch) mereproduksi ini
+persis: setelah `checkout -B results`, `patches/` stale; setelah restore
+dari `origin/t1-1-unit-test`, patch current.
+
+**Koreksi atas kesimpulan run #6 sebelumnya:** "crash di DALAM
+`make_test_mc_state_root`, hipotesis fetch/compare MATI" — SALAH. Kesimpulan
+itu mengasumsikan binary berisi marker round-1; padahal binary run #6
+tidak punya marker sama sekali, jadi absennya marker tidak membuktikan
+lokasi apa pun. Crash run #6 = crash fixture LAMA yang sama dengan run #1
+(tag `0x11` + tanpa smoke/marker). Perbaikan round-1 (tag `0x12`, smoke
+test, marker, CHECK defensif) BELUM PERNAH dieksekusi sampai run #7.
+Catatan: dengan tag `0x11`, `Config::unpack_validator_set`
+(`mc-config.cpp:577`) jatuh ke jalur `#11` yang membaca `list` sebagai
+dict kosong → unpack ERROR → `fetch` ERROR → `move_as_ok()` LOG(FATAL)
+(SIGABRT, bukan SIGSEGV). Run #6 mati SIGSEGV (11), jadi crash-nya bukan
+di jalur error itu — lokasi pastinya tetap belum diketahui dari artefak
+run #6 (backtrace tanpa simbol, tanpa marker). Run #7 yang akan menjawabnya.
+
+**Yang DIPERBAIKI untuk run #7 (workflow v4 + patch test v3):**
+- Workflow: step "Apply T1-1 patches" mengembalikan `patches/` dari
+  `origin/t1-1-unit-test` dulu (`git fetch` + `git checkout
+  origin/t1-1-unit-test -- patches/`), lalu tripwire grep: gagal LOUD
+  kalau patch tidak mengandung `FetchMcStateSmoke` atau tag `0x12`.
+- Patch test: marker `[t1-1]` + `fflush` di DALAM `make_test_mc_state_root`
+  (sebelum/sesudah `make_test_shard_hashes`, `make_test_config_dict`,
+  `make_test_out_msg_queue_info`, `make_test_shard_accounts`,
+  `t_ShardStateUnsplit.validate_ref`) — kali ini marker benar-benar ada
+  di binary, jadi crash berikutnya terlokalisasi ke sub-call yang tepat.
+- Workflow: step baru "List registered tests" (`nm` hitung objek registrasi
+  `test_instance_…`, harap 18) dan "Resolve crash offsets" (`addr2line`
+  atas tiap offset `+0x…` di log crash → nama fungsi + file:line).
+  Keduanya non-fatal; hasilnya masuk `RESULTS.md` + branch `results`.
+
+**Verifikasi statis tambahan (TLB, bukan tebakan):** layout
+`McStateExtra#cc26`, `ConfigParams` (addr 256-bit + ref), `ValidatorInfo`
+(`uint32`+`uint32`+Bool), `ShardHashes`, `OldMcBlocksInfo` di
+`crypto/block/block.tlb` semuanya cocok dengan builder fixture.
+`extract_addr_prefix`/`shard_contains` (`ton/ton-shard.h:42-48,88-99`)
+murni bit-ops, benar untuk workchain −1. Tidak ada cacat fixture baru
+yang ditemukan; satu-satunya cacat nyata tetap tag `0x11` (sudah `0x12`
+di patch current).
+
 ## Apa arti tiap hasil
 
 | Hasil | Arti |

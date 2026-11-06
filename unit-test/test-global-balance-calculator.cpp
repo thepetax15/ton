@@ -1276,11 +1276,25 @@ td::Ref<vm::Cell> make_test_shard_hashes(const std::vector<TestShardDesc>& descs
   return dict.get_root_cell();
 }
 
+void t11_mark(const char* what) {
+  // Run #6 lesson: the binary that crashed had NO markers at all (the
+  // workflow applied a STALE test patch from the results branch), so the
+  // crash could not be localized. These markers bracket every sub-call of
+  // make_test_mc_state_root: a missing "OK" marker names the crashing call.
+  std::fprintf(stderr, "[t1-1] %s\n", what);
+  std::fflush(stderr);
+}
+
 td::Ref<vm::Cell> make_test_mc_state_root(const std::vector<TestShardDesc>& descs) {
   // ShardStateUnsplit root for a masterchain block, mirroring
   // make_test_shard_state_root but with custom = just ^McStateExtra.
+  t11_mark("root: enter");
+  t11_mark("root: make_test_shard_hashes ...");
   auto shard_hashes = make_test_shard_hashes(descs);
+  t11_mark("root: make_test_shard_hashes OK");
+  t11_mark("root: make_test_config_dict ...");
   auto config = make_test_config_dict();
+  t11_mark("root: make_test_config_dict OK");
   vm::CellBuilder extra_aux_cb;
   CHECK(extra_aux_cb.store_zeroes_bool(16));  // flags (0: no block_create_stats)
   CHECK(extra_aux_cb.store_zeroes_bool(32));  // validator_list_hash_short
@@ -1310,9 +1324,15 @@ td::Ref<vm::Cell> make_test_mc_state_root(const std::vector<TestShardDesc>& desc
   CHECK(cb.store_zeroes_bool(32));  // gen_utime
   CHECK(cb.store_zeroes_bool(64));  // gen_lt
   CHECK(cb.store_zeroes_bool(32));  // min_ref_mc_seqno
-  CHECK(cb.store_ref_bool(make_test_out_msg_queue_info(empty_queue, nullptr)));
+  t11_mark("root: make_test_out_msg_queue_info ...");
+  auto out_queue_info = make_test_out_msg_queue_info(empty_queue, nullptr);
+  t11_mark("root: make_test_out_msg_queue_info OK");
+  CHECK(cb.store_ref_bool(std::move(out_queue_info)));
   CHECK(cb.store_zeroes_bool(1));  // before_split
-  CHECK(cb.store_ref_bool(make_test_shard_accounts(mc_id.shard_full())));
+  t11_mark("root: make_test_shard_accounts ...");
+  auto shard_accounts = make_test_shard_accounts(mc_id.shard_full());
+  t11_mark("root: make_test_shard_accounts OK");
+  CHECK(cb.store_ref_bool(std::move(shard_accounts)));
   vm::CellBuilder aux_cb;
   CHECK(aux_cb.store_zeroes_bool(128));  // overload_history, underload_history
   CHECK(block::CurrencyCollection::zero().store(aux_cb));
@@ -1323,7 +1343,9 @@ td::Ref<vm::Cell> make_test_mc_state_root(const std::vector<TestShardDesc>& desc
   CHECK(cb.store_ones_bool(1));  // custom:just$1
   CHECK(cb.store_ref_bool(std::move(extra)));
   auto result = cb.finalize();
+  t11_mark("root: t_ShardStateUnsplit.validate_ref ...");
   CHECK(block::gen::t_ShardStateUnsplit.validate_ref(result));
+  t11_mark("root: t_ShardStateUnsplit.validate_ref OK");
   return result;
 }
 
