@@ -1,0 +1,36 @@
+--- a/validator/impl/global-balance-calculator-internal.hpp
++++ b/validator/impl/global-balance-calculator-internal.hpp
+@@ -19,6 +19,10 @@
+ struct EnqueuedMsgDescr;
+ }
+ 
++namespace ton::validator {
++class MasterchainStateQ;
++}  // namespace ton::validator
++
+ namespace ton::validator::detail {
+ 
+ struct ParsedShardState {
+@@ -36,6 +40,22 @@
+       std::vector<std::shared_ptr<ParsedShardState>> prev = {});
+ };
+ 
++// Global state snapshot compared by compare_global_balance(). Defined here
++// (moved from global-balance-calculator.cpp, where it lived in an anonymous
++// namespace) so unit tests can build it directly; seqno() is defined in
++// that .cpp file.
++struct GlobalInfo {
++  td::Ref<MasterchainStateQ> mc_state;
++  td::RefInt256 global_balance = td::zero_refint();
++  td::RefInt256 last_mc_block_burned = td::zero_refint();
++
++  BlockSeqno seqno() const;
++};
++
++// Returns an error with message "GLOBAL BALANCE DISCREPANCY ..." when the
++// next state's global balance does not match prev + created - burned.
++td::Status compare_global_balance(const GlobalInfo& prev, const GlobalInfo& next, bool log_success);
++
+ td::Result<td::RefInt256> calculate_dispatch_queue_balance(vm::AugmentedDictionary& dispatch_queue, int global_version);
+ td::Result<td::RefInt256> calculate_dispatch_queue_balance_diff(vm::AugmentedDictionary& old_queue,
+                                                                 vm::AugmentedDictionary& new_queue, int global_version);
