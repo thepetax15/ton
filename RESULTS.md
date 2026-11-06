@@ -1,10 +1,10 @@
 # T1-1 unit test — results
 
-- run_url: https://github.com/thepetax15/ton/actions/runs/42265848486
+- run_url: https://github.com/thepetax15/ton/actions/runs/42266826930
 - ref: refs/heads/t1-1-unit-test
-- sha: c72a2f24a33090036c921a0d78cf13de05e258d1
-- ended_utc: 1793989861 (epoch)
-- elapsed_min (approx billed): 37
+- sha: 09bce89a8e4fccd95c51d68a131cf5946e2d3ec1
+- ended_utc: 1793990511 (epoch)
+- elapsed_min (approx billed): 41
 - cmake exit: 0
 - build exit: 0
 - full-run exit: 1
@@ -38,22 +38,22 @@
 ### FetchMcStateSmoke (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5593ae18dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5557bf53dec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -63,22 +63,22 @@
 ### MergeAsymmetricS2 (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x558bfaa7aec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f68f473ec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -88,22 +88,22 @@
 ### MergeAsymmetricS3 (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x5613e24e3ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x564ecf4d6ec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -113,22 +113,22 @@
 ### MergeSymmetricR1 (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x562652b89ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55b23d441ec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -138,22 +138,22 @@
 ### MergeSymmetricS1 (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x55f81bcf3ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x556b21716ec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -163,22 +163,22 @@
 ### SplitS4 (exit 1)
 
 ```
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
-./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x56498d0b0ec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
+./ton/build/test/validator/test-global-balance-calculator(+0x5bbec6)[0x555a97c8bec6]
 -------------------------------
 --- Enhanced Backtrace (libbacktrace) ---
 (another thread is printing backtrace)
@@ -252,9 +252,9 @@ td::(anonymous namespace)::print_backtrace()
 == 0x45330 ==
 ??
 ??:0
-== 0x5bbebb ==
+== 0x5bbd59 ==
 resolve_unit_addrs_overlap_walk
-/home/runner/work/ton/ton/ton/third-party/libbacktrace/dwarf.c:1684
+/home/runner/work/ton/ton/ton/third-party/libbacktrace/dwarf.c:1624
 == 0x5bbec6 ==
 resolve_unit_addrs_overlap_walk
 /home/runner/work/ton/ton/ton/third-party/libbacktrace/dwarf.c:1684
