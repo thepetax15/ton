@@ -1,0 +1,45 @@
+--- a/validator/global-balance-calculator.cpp
++++ b/validator/global-balance-calculator.cpp
+@@ -381,19 +381,13 @@
+ 
+ }  // namespace detail
+ 
+-namespace {
++namespace detail {
+ 
+-using detail::ParsedShardState;
+-
+-struct GlobalInfo {
+-  Ref<MasterchainStateQ> mc_state;
+-  td::RefInt256 global_balance = td::zero_refint();
+-  td::RefInt256 last_mc_block_burned = td::zero_refint();
+-
+-  BlockSeqno seqno() const {
+-    return mc_state->get_seqno();
+-  }
+-};
++// GlobalInfo is declared in validator/impl/global-balance-calculator-internal.hpp
++// so unit tests can build it and call compare_global_balance() directly.
++BlockSeqno GlobalInfo::seqno() const {
++  return mc_state->get_seqno();
++}
+ 
+ td::actor::Task<GlobalInfo> compute_global_balance_from_states(
+     std::vector<std::shared_ptr<ParsedShardState>> all_states, Ref<MasterchainStateQ> mc_state,
+@@ -889,13 +883,13 @@
+   }
+ };
+ 
+-}  // namespace
++}  // namespace detail
+ 
+ td::actor::ActorOwn<GlobalBalanceCalculator> GlobalBalanceCalculator::create(
+     BlockIdExt start_mc_block, td::actor::ActorId<ValidatorManager> manager,
+     std::unique_ptr<GarbageCollectorBlocker> gc_blocker) {
+-  return td::actor::create_actor<GlobalBalanceCalculatorImpl>("GlobalBalance", start_mc_block, std::move(manager),
+-                                                              std::move(gc_blocker));
++  return td::actor::create_actor<detail::GlobalBalanceCalculatorImpl>("GlobalBalance", start_mc_block,
++                                                                      std::move(manager), std::move(gc_blocker));
+ }
+ 
+ }  // namespace ton::validator
