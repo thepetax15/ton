@@ -1,0 +1,17 @@
+Running test Test_GlobalBalanceCalculator_MergeSymmetricS1...
+[pid 34152] [time 1793985885] Signal: 11
+------- Stack Backtrace -------
+./ton/build/test/validator/test-global-balance-calculator(+0x2ae047)[0x556f19c33047]
+./ton/build/test/validator/test-global-balance-calculator(+0x11277d)[0x556f19a9777d]
+/lib/x86_64-linux-gnu/libc.so.6(+0x45330)[0x7f68be845330]
+./ton/build/test/validator/test-global-balance-calculator(+0x1e92a0)[0x556f19b6e2a0]
+./ton/build/test/validator/test-global-balance-calculator(+0x1e9e36)[0x556f19b6ee36]
+./ton/build/test/validator/test-global-balance-calculator(+0x1cc79a)[0x556f19b5179a]
+./ton/build/test/validator/test-global-balance-calculator(+0x1f3a45)[0x556f19b78a45]
+./ton/build/test/validator/test-global-balance-calculator(+0x1f3508)[0x556f19b78508]
+./ton/build/test/validator/test-global-balance-calculator(+0x1fe105)[0x556f19b83105]
+/lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca)[0x7f68be82a1ca]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b)[0x7f68be82a28b]
+./ton/build/test/validator/test-global-balance-calculator(+0x1cb8f5)[0x556f19b508f5]
+-------------------------------
+--- Enhanced Backtrace (libbacktrace) ---
