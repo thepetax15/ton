@@ -1,0 +1,304 @@
+--- a/test/validator/test-global-balance-calculator.cpp
++++ b/test/validator/test-global-balance-calculator.cpp
+@@ -25,6 +25,15 @@
+ // - QueueBalancesWithNonzeroIhrFee: get_out_queue_message_balance,
+ //   calculate_dispatch_queue_balance[_diff], get_dispatch_queue_balance, and
+ //   ParsedShardState::fetch with nonzero IHR fields at global versions 16 and 7.
++// - MergeAsymmetricS2 / MergeAsymmetricS3: compare_global_balance on an
++//   asymmetric shard merge (T1-1 finding: A+2/B+0 and A+0/B+1) must report
++//   GLOBAL BALANCE DISCREPANCY (diff -1 TON / -0.5 TON).
++// - MergeSymmetricR1: compare_global_balance on the real post-v17 merge
++//   (MC 103504461, A=B=0) must be OK.
++// - MergeSymmetricS1: compare_global_balance on a symmetric merge (A+1/B+1)
++//   must be OK.
++// - SplitS4: compare_global_balance on a split (parent 100 -> children
++//   103/104) must be OK.
+ 
+ #include <utility>
+ #include <vector>
+@@ -35,8 +44,10 @@
+ #include "td/actor/TestScheduler.h"
+ #include "td/actor/actor.h"
+ #include "td/utils/tests.h"
++#include "crypto/block/mc-config.h"
+ #include "validator/fabric.h"
+ #include "validator/impl/global-balance-calculator-internal.hpp"
++#include "validator/impl/shard.hpp"
+ 
+ namespace ton::validator {
+ namespace {
+@@ -1130,5 +1141,274 @@
+   }
+ }
+ 
++// --- T1-1: compare_global_balance on shard merge/split -----------------------
++// Direct unit tests for compare_global_balance() (validator/
++// global-balance-calculator.cpp). The function is called here with two
++// hand-built GlobalInfo snapshots: each holds a REAL MasterchainStateQ
++// (built from hand-packed cells, not a mock) so the config/shard lookups
++// inside compare exercise the production code paths.
++//
++// Background (finding T1-1): on a shard MERGE the formula counts every new
++// block of the merged parent at the FULL basechain fee, but each child block
++// only minted HALF the fee (collator halves the fee per split level). When
++// the two children advanced asymmetrically (A != B) the formula over-counts
++// creation by (max(A,B) - (A+B)/2) * basechain_fee, so an honest
++// masterchain block is rejected with GLOBAL BALANCE DISCREPANCY.
++//
++// Fixture numbers (all in nanotons; 1 TON = 1,000,000,000):
++// - ConfigParam 14 fees are the LIVE values decoded 2026-11-06 from
++//   toncenter getConfigParam(14): masterchain 1,699,932,928,
++//   basechain 1,000,000,000. Only the basechain fee affects the verdict
++//   (the masterchain fee cancels out); the live value is used for fidelity.
++// - prev global balance is an arbitrary anchor (1000 TON). The next
++//   balance is anchor + masterchain fee + TRUE shard creation, where true
++//   creation = sum over produced blocks of (basechain fee >> prefix len).
++// - The formula's creation = masterchain fee + sum over next descs of
++//   (basechain fee >> prefix len of next desc) * new_blocks, where
++//   new_blocks for a merge = parent top - max(child tops).
++// - MC state seqno is 0 in both snapshots: with seqno 0 ConfigInfo skips
++//   the prev_blocks zero-state check, so the fixture needs no old-block
++//   dictionary. The MC seqno never enters the compare arithmetic.
++// - The v17 gate (validate-query.cpp) is NOT part of these tests:
++//   compare_global_balance() itself takes no version argument.
++
++constexpr long long kMcBlockFee = 1699932928LL;    // live ConfigParam 14
++constexpr long long kBaseBlockFee = 1000000000LL;  // live ConfigParam 14
++constexpr long long kPrevBalance = 1000000000000LL;  // 1000 TON anchor
++constexpr td::uint64 kLeftShard = 0x4000000000000000ULL;
++constexpr td::uint64 kRightShard = 0xC000000000000000ULL;
++
++struct TestShardDesc {
++  td::uint64 shard;
++  BlockSeqno top;
++};
++
++td::Ref<vm::Cell> make_test_block_create_fees() {
++  // block_grams_created#6b masterchain_block_fee:Grams basechain_block_fee:Grams
++  vm::CellBuilder cb;
++  CHECK(cb.store_long_bool(0x6b, 8));
++  CHECK(block::tlb::t_Grams.store_integer_value(cb, *td::make_refint(kMcBlockFee)));
++  CHECK(block::tlb::t_Grams.store_integer_value(cb, *td::make_refint(kBaseBlockFee)));
++  return cb.finalize();
++}
++
++td::Ref<vm::Cell> make_test_validator_set() {
++  // Minimal valid validator set (validators_ext#12): 1 validator, weight 1.
++  // mc_reinit requires ConfigParam 34 to unpack; compare never uses it.
++  vm::CellBuilder descr_cb;
++  CHECK(descr_cb.store_long_bool(0x53, 8));          // validator#53
++  CHECK(descr_cb.store_long_bool(0x8e81278a, 32));   // ed25519_pubkey#8e81278a
++  CHECK(descr_cb.store_zeroes_bool(256));            // pubkey (test-only, never signs)
++  CHECK(descr_cb.store_long_bool(1, 64));            // weight
++  vm::Dictionary dict{16};
++  CHECK(dict.set(td::BitArray<16>{0}, vm::load_cell_slice_ref(descr_cb.finalize()),
++                 vm::Dictionary::SetMode::Add));
++  vm::CellBuilder cb;
++  CHECK(cb.store_long_bool(0x11, 8));       // validators_ext#12
++  CHECK(cb.store_long_bool(0, 32));         // utime_since
++  CHECK(cb.store_long_bool(0xffffffff, 32));  // utime_until
++  CHECK(cb.store_long_bool(1, 16));         // total
++  CHECK(cb.store_long_bool(1, 16));         // main
++  CHECK(cb.store_long_bool(1, 64));         // total_weight (= sum of weights)
++  CHECK(cb.store_ones_bool(1));             // HashmapE: non-empty
++  CHECK(cb.store_ref_bool(dict.get_root_cell()));
++  return cb.finalize();
++}
++
++td::Ref<vm::Cell> make_test_config_dict() {
++  // ConfigParams dict (Hashmap 32 ^Cell). Only two params are needed:
++  // 14 (BlockCreateFees, read by compare) and 34 (validator set, required
++  // by mc_reinit). Params 8/12/31 stay absent (null is accepted).
++  vm::Dictionary dict{32};
++  vm::CellBuilder fees_val_cb;
++  CHECK(fees_val_cb.store_ref_bool(make_test_block_create_fees()));
++  CHECK(dict.set(td::BitArray<32>{14}, vm::load_cell_slice_ref(fees_val_cb.finalize()),
++                 vm::Dictionary::SetMode::Add));
++  vm::CellBuilder vset_val_cb;
++  CHECK(vset_val_cb.store_ref_bool(make_test_validator_set()));
++  CHECK(dict.set(td::BitArray<32>{34}, vm::load_cell_slice_ref(vset_val_cb.finalize()),
++                 vm::Dictionary::SetMode::Add));
++  return dict.get_root_cell();
++}
++
++td::Ref<vm::Cell> make_test_shard_leaf(const TestShardDesc& desc) {
++  // bt_leaf$0: 1 zero bit, then a ShardDescr record packed by McShardHash.
++  // funds_created/fees_collected stay zero: compare never reads them, it
++  // recomputes creation from seqno deltas.
++  block::McShardHash hash{ton::BlockId{ShardIdFull{basechainId, desc.shard}, desc.top}, 0 /* start_lt */,
++                          0 /* end_lt */, 0 /* gen_utime */, RootHash::zero(), FileHash::zero()};
++  vm::CellBuilder cb;
++  CHECK(cb.store_zeroes_bool(1));
++  CHECK(hash.pack(cb));
++  return cb.finalize();
++}
++
++td::Ref<vm::Cell> make_test_shard_hashes(const std::vector<TestShardDesc>& descs) {
++  // Top dict (HashmapE 32 ^(BinTree ShardDescr)) with one workchain-0 entry.
++  // One desc -> a single leaf; two descs -> a fork (left ref = 0x4000..
++  // child, right ref = 0xC000.. child).
++  td::Ref<vm::Cell> tree;
++  if (descs.size() == 1) {
++    tree = make_test_shard_leaf(descs[0]);
++  } else {
++    CHECK(descs.size() == 2);
++    CHECK(descs[0].shard == kLeftShard && descs[1].shard == kRightShard);
++    vm::CellBuilder fork_cb;
++    CHECK(fork_cb.store_ones_bool(1));  // bt_fork$1
++    CHECK(fork_cb.store_ref_bool(make_test_shard_leaf(descs[0])));
++    CHECK(fork_cb.store_ref_bool(make_test_shard_leaf(descs[1])));
++    tree = fork_cb.finalize();
++  }
++  vm::Dictionary dict{32};
++  vm::CellBuilder val_cb;
++  CHECK(val_cb.store_ref_bool(tree));
++  CHECK(dict.set(td::BitArray<32>{basechainId}, vm::load_cell_slice_ref(val_cb.finalize()),
++                 vm::Dictionary::SetMode::Add));
++  return dict.get_root_cell();
++}
++
++td::Ref<vm::Cell> make_test_mc_state_root(const std::vector<TestShardDesc>& descs) {
++  // ShardStateUnsplit root for a masterchain block, mirroring
++  // make_test_shard_state_root but with custom = just ^McStateExtra.
++  auto shard_hashes = make_test_shard_hashes(descs);
++  auto config = make_test_config_dict();
++  vm::CellBuilder extra_aux_cb;
++  CHECK(extra_aux_cb.store_zeroes_bool(16));  // flags (0: no block_create_stats)
++  CHECK(extra_aux_cb.store_zeroes_bool(32));  // validator_list_hash_short
++  CHECK(extra_aux_cb.store_zeroes_bool(32));  // catchain_seqno
++  CHECK(extra_aux_cb.store_zeroes_bool(1));   // nx_cc_updated
++  CHECK(extra_aux_cb.store_zeroes_bool(1));   // prev_blocks: empty OldMcBlocksInfo
++  CHECK(extra_aux_cb.store_zeroes_bool(1));   // after_key_block
++  CHECK(extra_aux_cb.store_zeroes_bool(1));   // last_key_block:nothing$0
++  vm::CellBuilder extra_cb;
++  CHECK(extra_cb.store_long_bool(0xcc26, 16));  // masterchain_state_extra#cc26
++  CHECK(extra_cb.store_ones_bool(1));           // shard_hashes: non-empty
++  CHECK(extra_cb.store_ref_bool(std::move(shard_hashes)));
++  CHECK(extra_cb.store_zeroes_bool(256));       // config_addr
++  CHECK(extra_cb.store_ref_bool(std::move(config)));
++  CHECK(extra_cb.store_ref_bool(extra_aux_cb.finalize()));
++  CHECK(block::CurrencyCollection::zero().store(extra_cb));  // global_balance
++  auto extra = extra_cb.finalize();
++
++  vm::AugmentedDictionary empty_queue{256, block::tlb::aug_OutMsgQueue};
++  auto mc_id = make_block_id(ShardIdFull{masterchainId, shardIdAll}, 0);
++  vm::CellBuilder cb;
++  CHECK(cb.store_long_bool(0x9023afe2, 32));
++  CHECK(cb.store_long_bool(-239, 32));  // global_id (mainnet; must be nonzero)
++  CHECK(block::ShardId{mc_id.shard_full()}.serialize(cb));
++  CHECK(cb.store_long_bool(mc_id.seqno(), 32));
++  CHECK(cb.store_zeroes_bool(32));  // vert_seq_no
++  CHECK(cb.store_zeroes_bool(32));  // gen_utime
++  CHECK(cb.store_zeroes_bool(64));  // gen_lt
++  CHECK(cb.store_zeroes_bool(32));  // min_ref_mc_seqno
++  CHECK(cb.store_ref_bool(make_test_out_msg_queue_info(empty_queue, nullptr)));
++  CHECK(cb.store_zeroes_bool(1));  // before_split
++  CHECK(cb.store_ref_bool(make_test_shard_accounts(mc_id.shard_full())));
++  vm::CellBuilder aux_cb;
++  CHECK(aux_cb.store_zeroes_bool(128));  // overload_history, underload_history
++  CHECK(block::CurrencyCollection::zero().store(aux_cb));
++  CHECK(block::CurrencyCollection::zero().store(aux_cb));
++  CHECK(aux_cb.store_zeroes_bool(1));  // empty libraries
++  CHECK(aux_cb.store_zeroes_bool(1));  // master_ref:nothing$0
++  CHECK(cb.store_ref_bool(aux_cb.finalize()));
++  CHECK(cb.store_ones_bool(1));  // custom:just$1
++  CHECK(cb.store_ref_bool(std::move(extra)));
++  auto result = cb.finalize();
++  CHECK(block::gen::t_ShardStateUnsplit.validate_ref(result));
++  return result;
++}
++
++td::Ref<MasterchainStateQ> make_test_mc_state(const std::vector<TestShardDesc>& descs) {
++  auto root = make_test_mc_state_root(descs);
++  auto id = make_block_id(ShardIdFull{masterchainId, shardIdAll}, 0);
++  auto res = MasterchainStateQ::fetch(id, td::BufferSlice{}, root);
++  if (res.is_error()) {
++    LOG(ERROR) << "MasterchainStateQ::fetch failed: " << res.error().to_string();
++  }
++  CHECK(res.is_ok());
++  return res.move_as_ok();
++}
++
++detail::GlobalInfo make_test_global_info(td::Ref<MasterchainStateQ> state, long long balance) {
++  return detail::GlobalInfo{std::move(state), td::make_refint(balance), td::zero_refint()};
++}
++
++void expect_discrepancy(td::Status st, const char* expected_diff) {
++  // The finding fires as a GLOBAL BALANCE DISCREPANCY error. Any other
++  // outcome (OK, or a different error) means the harness is wrong, not the
++  // finding: fail loudly instead of passing silently.
++  if (st.is_error()) {
++    LOG(ERROR) << "compare_global_balance returned: " << st.to_string();
++  }
++  CHECK(st.is_error());
++  auto msg = st.to_string();
++  CHECK(msg.find("GLOBAL BALANCE DISCREPANCY") != std::string::npos);
++  CHECK(msg.find(expected_diff) != std::string::npos);
++}
++
++void expect_balance_ok(td::Status st) {
++  if (st.is_error()) {
++    LOG(ERROR) << "compare_global_balance unexpectedly failed: " << st.to_string();
++  }
++  CHECK(st.is_ok());
++}
++
++TEST(GlobalBalanceCalculator, MergeAsymmetricS2) {
++  // T1-1 FINDING (decisive test): merge with A+2/B+0. PoC S2 numbers:
++  // prev tops 100/100, parent top 103. True creation 2.0 TON, formula
++  // counts 3.0 TON -> the calculator MUST report GLOBAL BALANCE
++  // DISCREPANCY with diff -1 TON. If this test passes OK instead, T1-1
++  // is DEAD.
++  auto prev = make_test_mc_state({{kLeftShard, 100}, {kRightShard, 100}});
++  auto next = make_test_mc_state({{shardIdAll, 103}});
++  auto prev_info = make_test_global_info(prev, kPrevBalance);
++  auto next_info = make_test_global_info(next, kPrevBalance + kMcBlockFee + 2 * kBaseBlockFee);
++  expect_discrepancy(detail::compare_global_balance(prev_info, next_info, false), "-1000000000");
++}
++
++TEST(GlobalBalanceCalculator, MergeAsymmetricS3) {
++  // T1-1 FINDING: merge with A+0/B+1. PoC S3 numbers: prev tops 100/100,
++  // parent top 102. True creation 1.5 TON, formula counts 2.0 TON ->
++  // GLOBAL BALANCE DISCREPANCY with diff -0.5 TON.
++  auto prev = make_test_mc_state({{kLeftShard, 100}, {kRightShard, 100}});
++  auto next = make_test_mc_state({{shardIdAll, 102}});
++  auto prev_info = make_test_global_info(prev, kPrevBalance);
++  auto next_info = make_test_global_info(next, kPrevBalance + kMcBlockFee + kBaseBlockFee + kBaseBlockFee / 2);
++  expect_discrepancy(detail::compare_global_balance(prev_info, next_info, false), "-500000000");
++}
++
++TEST(GlobalBalanceCalculator, MergeSymmetricR1) {
++  // CONTROL: the real post-v17 merge (MC 103504461). Children froze at
++  // tops 108274667 / 108274671 (A=B=0), parent top 108274672. True
++  // creation 1.0 TON, formula counts 1.0 TON -> MUST be OK. If this errors,
++  // the harness is wrong, not the finding.
++  auto prev = make_test_mc_state({{kLeftShard, 108274667}, {kRightShard, 108274671}});
++  auto next = make_test_mc_state({{shardIdAll, 108274672}});
++  auto prev_info = make_test_global_info(prev, kPrevBalance);
++  auto next_info = make_test_global_info(next, kPrevBalance + kMcBlockFee + kBaseBlockFee);
++  expect_balance_ok(detail::compare_global_balance(prev_info, next_info, false));
++}
++
++TEST(GlobalBalanceCalculator, MergeSymmetricS1) {
++  // CONTROL: symmetric merge A+1/B+1. PoC S1 numbers: prev tops 100/100,
++  // parent top 102. True creation 2.0 TON, formula counts 2.0 TON ->
++  // MUST be OK.
++  auto prev = make_test_mc_state({{kLeftShard, 100}, {kRightShard, 100}});
++  auto next = make_test_mc_state({{shardIdAll, 102}});
++  auto prev_info = make_test_global_info(prev, kPrevBalance);
++  auto next_info = make_test_global_info(next, kPrevBalance + kMcBlockFee + 2 * kBaseBlockFee);
++  expect_balance_ok(detail::compare_global_balance(prev_info, next_info, false));
++}
++
++TEST(GlobalBalanceCalculator, SplitS4) {
++  // CONTROL: split. PoC S4 numbers: parent top 100 -> children 103/104.
++  // True creation 3.5 TON, formula counts 3.5 TON -> MUST be OK.
++  auto prev = make_test_mc_state({{shardIdAll, 100}});
++  auto next = make_test_mc_state({{kLeftShard, 103}, {kRightShard, 104}});
++  auto prev_info = make_test_global_info(prev, kPrevBalance);
++  auto next_info = make_test_global_info(next, kPrevBalance + kMcBlockFee + 3 * kBaseBlockFee + kBaseBlockFee / 2);
++  expect_balance_ok(detail::compare_global_balance(prev_info, next_info, false));
++}
++
+ }  // namespace
+ }  // namespace ton::validator
