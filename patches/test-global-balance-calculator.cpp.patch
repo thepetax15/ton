@@ -1,6 +1,6 @@
 --- a/test/validator/test-global-balance-calculator.cpp
 +++ b/test/validator/test-global-balance-calculator.cpp
-@@ -25,6 +25,15 @@
+@@ -25,7 +25,22 @@
  // - QueueBalancesWithNonzeroIhrFee: get_out_queue_message_balance,
  //   calculate_dispatch_queue_balance[_diff], get_dispatch_queue_balance, and
  //   ParsedShardState::fetch with nonzero IHR fields at global versions 16 and 7.
@@ -13,10 +13,17 @@
 +//   must be OK.
 +// - SplitS4: compare_global_balance on a split (parent 100 -> children
 +//   103/104) must be OK.
++// - FetchMcStateSmoke: builds ONE masterchain state and checks fetch /
++//   config / shard lookups WITHOUT calling compare_global_balance.
++//   Run #1 bisect: if this crashes, the fault is in the fixture /
++//   MasterchainStateQ::fetch; if it passes and S2/S3 crash, the fault is
++//   in compare_global_balance.
  
++#include <cstdio>
  #include <utility>
  #include <vector>
-@@ -35,8 +44,10 @@
+ 
+@@ -35,8 +50,10 @@
  #include "td/actor/TestScheduler.h"
  #include "td/actor/actor.h"
  #include "td/utils/tests.h"
@@ -27,7 +34,7 @@
  
  namespace ton::validator {
  namespace {
-@@ -1130,5 +1141,274 @@
+@@ -1130,5 +1147,313 @@
    }
  }
  
@@ -94,7 +101,10 @@
 +  CHECK(dict.set(td::BitArray<16>{0}, vm::load_cell_slice_ref(descr_cb.finalize()),
 +                 vm::Dictionary::SetMode::Add));
 +  vm::CellBuilder cb;
-+  CHECK(cb.store_long_bool(0x11, 8));       // validators_ext#12
++  CHECK(cb.store_long_bool(0x12, 8));       // validators_ext#12 (was 0x11:
++  // 0x11 is validators#11, which only worked via a lenient fallback path
++  // in Config::unpack_validator_set; the cell layout here is the ext#12
++  // one (total_weight + HashmapE), so the tag must be 0x12)
 +  CHECK(cb.store_long_bool(0, 32));         // utime_since
 +  CHECK(cb.store_long_bool(0xffffffff, 32));  // utime_until
 +  CHECK(cb.store_long_bool(1, 16));         // total
@@ -210,13 +220,26 @@
 +
 +td::Ref<MasterchainStateQ> make_test_mc_state(const std::vector<TestShardDesc>& descs) {
 +  auto root = make_test_mc_state_root(descs);
++  std::fprintf(stderr, "[t1-1] mc_state_root built (%zu descs)\n", descs.size());
++  std::fflush(stderr);
 +  auto id = make_block_id(ShardIdFull{masterchainId, shardIdAll}, 0);
 +  auto res = MasterchainStateQ::fetch(id, td::BufferSlice{}, root);
 +  if (res.is_error()) {
 +    LOG(ERROR) << "MasterchainStateQ::fetch failed: " << res.error().to_string();
 +  }
 +  CHECK(res.is_ok());
-+  return res.move_as_ok();
++  std::fprintf(stderr, "[t1-1] MasterchainStateQ::fetch OK\n");
++  std::fflush(stderr);
++  auto state = res.move_as_ok();
++  // Fixture self-check (run #1 lesson): if the state has no config, or the
++  // shard tree does not round-trip, the fixture itself is broken — fail
++  // loudly here with a CHECK message instead of segfaulting later inside
++  // compare_global_balance, where the crash location would be ambiguous.
++  CHECK(state->get_config().get() != nullptr);
++  CHECK(state->get_shards().size() == descs.size());
++  std::fprintf(stderr, "[t1-1] config + %zu shard(s) OK\n", descs.size());
++  std::fflush(stderr);
++  return state;
 +}
 +
 +detail::GlobalInfo make_test_global_info(td::Ref<MasterchainStateQ> state, long long balance) {
@@ -241,6 +264,29 @@
 +    LOG(ERROR) << "compare_global_balance unexpectedly failed: " << st.to_string();
 +  }
 +  CHECK(st.is_ok());
++}
++
++TEST(GlobalBalanceCalculator, FetchMcStateSmoke) {
++  // RUN #1 BISECT (run #1 segfaulted in all 5 tests before any verdict):
++  // builds ONE masterchain state and checks fetch / config / shard lookups
++  // WITHOUT calling compare_global_balance. If THIS crashes, the fault is
++  // in the fixture / MasterchainStateQ::fetch; if it passes and S2/S3
++  // crash, the fault is in compare_global_balance. Runs first (registered
++  // before the merge/split tests) so the full run hits it first too.
++  auto state = make_test_mc_state({{kLeftShard, 100}, {kRightShard, 100}});
++  CHECK(state->get_config().get() != nullptr);
++  auto shards = state->get_shards();
++  CHECK(shards.size() == 2);
++  bool saw_left = false, saw_right = false;
++  for (const auto& sh : shards) {
++    if (sh->shard() == ShardIdFull{basechainId, kLeftShard}) {
++      saw_left = true;
++    }
++    if (sh->shard() == ShardIdFull{basechainId, kRightShard}) {
++      saw_right = true;
++    }
++  }
++  CHECK(saw_left && saw_right);
 +}
 +
 +TEST(GlobalBalanceCalculator, MergeAsymmetricS2) {
