@@ -1,0 +1,260 @@
+name: T1-1 unit test (compare_global_balance)
+
+# Runs the 5 new T1-1 unit tests for TON's compare_global_balance against
+# checkout 857b8a5, with the minimal refactor patches applied.
+# Results are committed to branch 'results' (RESULTS.md + full logs) so they
+# can be read without API auth. Trigger: push to main, or manual dispatch.
+
+on:
+  push:
+    branches: [t1-1-unit-test]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Record job start
+        run: echo "START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Check out harness repo
+        uses: actions/checkout@v4
+
+      - name: Publish STARTED marker
+        env:
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          {
+            echo "# T1-1 unit test run started"
+            echo
+            echo "- run_id: ${{ github.run_id }}"
+            echo "- run_url: ${RUN_URL}"
+            echo "- ref: ${{ github.ref }}"
+            echo "- sha: ${{ github.sha }}"
+            echo "- started_utc: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "- status: RUNNING (results land in RESULTS.md on branch 'results' when the job finishes)"
+          } > STARTED.md
+          git checkout -b results
+          git add STARTED.md
+          git commit -m "T1-1 run ${{ github.run_id }} started [skip ci]"
+          git push origin results
+
+      - name: Check out TON @857b8a5
+        uses: actions/checkout@v4
+        with:
+          repository: ton-blockchain/ton
+          ref: 857b8a57a178e6ae0fe7fa86e7d81c5233de8560
+          submodules: recursive
+          fetch-depth: 1
+          path: ton
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git cmake ninja-build libjemalloc-dev ccache
+
+      - name: Install clang-21
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt -y update
+          sudo apt install -y clang-21
+
+      - name: Apply T1-1 patches
+        run: |
+          set -euo pipefail
+          cd ton
+          git rev-parse HEAD
+          git apply ../patches/global-balance-calculator-internal.hpp.patch
+          git apply ../patches/global-balance-calculator.cpp.patch
+          git apply ../patches/test-global-balance-calculator.cpp.patch
+          git status --porcelain
+
+      - name: Configure + build test target
+        run: |
+          set +e
+          cd ton
+          mkdir -p build && cd build
+          cmake -GNinja .. \
+            -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 \
+            -DTON_USE_JEMALLOC=ON -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$(pwd)/install" -DTON_ARCH=x86-64 \
+            > ../../cmake-log.txt 2>&1
+          echo $? > ../../cmake-exit-code.txt
+          if [ "$(cat ../../cmake-exit-code.txt)" = "0" ]; then
+            ninja test-global-balance-calculator > ../../build-log.txt 2>&1
+            echo $? > ../../build-exit-code.txt
+          else
+            echo "cmake failed, skipping build" > ../../build-log.txt
+            echo "SKIPPED" > ../../build-exit-code.txt
+          fi
+          set -e
+          tail -20 ../../build-log.txt || true
+
+      - name: Run unit test (full + per-test)
+        run: |
+          set +e
+          if [ "$(cat build-exit-code.txt)" = "0" ]; then
+            ./ton/build/test/validator/test-global-balance-calculator > test-log-full.txt 2>&1
+            echo $? > test-exit-code.txt
+            for t in MergeAsymmetricS2 MergeAsymmetricS3 MergeSymmetricR1 MergeSymmetricS1 SplitS4; do
+              ./ton/build/test/validator/test-global-balance-calculator --filter "Test_GlobalBalanceCalculator_$t" > "test-log-$t.txt" 2>&1
+              echo "$t:$?" >> per-test-codes.txt
+            done
+          else
+            echo "build failed, skipping test" > test-log-full.txt
+            echo "SKIPPED" > test-exit-code.txt
+          fi
+          set -e
+          tail -30 test-log-full.txt || true
+
+      - name: Publish results to branch 'results'
+        if: always()
+        env:
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          END_EPOCH=$(date +%s)
+          ELAPSED_MIN=$(( (END_EPOCH - START_EPOCH + 59) / 60 ))
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin results 2>/dev/null || true
+          git checkout results 2>/dev/null || git checkout -b results
+          python3 - "$RUN_URL" "$ELAPSED_MIN" "$END_EPOCH" <<'PYEOF'
+          import os, sys, re
+          run_url, elapsed_min, end_epoch = sys.argv[1], sys.argv[2], sys.argv[3]
+          def read(p, default="MISSING"):
+              try:
+                  with open(p) as f: return f.read().strip()
+              except FileNotFoundError:
+                  return default
+          cmake_code = read("cmake-exit-code.txt")
+          build_code = read("build-exit-code.txt")
+          test_code = read("test-exit-code.txt")
+          per = {}
+          for line in read("per-test-codes.txt", "").splitlines():
+              if ":" in line:
+                  k, v = line.rsplit(":", 1)
+                  per[k.strip()] = v.strip()
+          full_log = read("test-log-full.txt", "")
+          summary = [l for l in full_log.splitlines() if "test(s) passed" in l or "test(s) failed" in l]
+          failed_names = []
+          m = re.search(r"test\(s\) failed:\n((?: - .+\n?)+)", full_log)
+          if m:
+              failed_names = [l.strip()[2:] for l in m.group(1).splitlines()]
+          tests = [
+              ("MergeAsymmetricS2", "FINDING"),
+              ("MergeAsymmetricS3", "FINDING"),
+              ("MergeSymmetricR1", "CONTROL"),
+              ("MergeSymmetricS1", "CONTROL"),
+              ("SplitS4", "CONTROL"),
+          ]
+          lines = []
+          lines.append("# T1-1 unit test — results")
+          lines.append("")
+          lines.append(f"- run_url: {run_url}")
+          lines.append(f"- ref: {os.environ.get('GITHUB_REF', '?')}")
+          lines.append(f"- sha: {os.environ.get('GITHUB_SHA', '?')}")
+          lines.append(f"- ended_utc: {end_epoch} (epoch)")
+          lines.append(f"- elapsed_min (approx billed): {elapsed_min}")
+          lines.append(f"- cmake exit: {cmake_code}")
+          lines.append(f"- build exit: {build_code}")
+          lines.append(f"- full-run exit: {test_code}")
+          lines.append("")
+          lines.append("## Verdict per test (per-test runs, --filter, authoritative)")
+          lines.append("")
+          lines.append("| Test | Role | Exit code | Meaning |")
+          lines.append("|---|---|---|---|")
+          for name, role in tests:
+              code = per.get(name, "MISSING")
+              if code == "0":
+                  meaning = "PASS"
+              elif code == "MISSING":
+                  meaning = "NOT RUN"
+              else:
+                  meaning = f"FAIL (exit {code})"
+              lines.append(f"| {name} | {role} | {code} | {meaning} |")
+          lines.append("")
+          lines.append("## How to read")
+          lines.append("")
+          lines.append("- S2/S3 PASS (exit 0) = compare_global_balance returned GLOBAL BALANCE DISCREPANCY with the expected diff => **BUG CONFIRMED**.")
+          lines.append("- S2/S3 FAIL = compare returned OK or a different error => **finding DEAD** (or harness wrong — see log).")
+          lines.append("- R1/S1/S4 PASS = controls OK as expected. FAIL = harness wrong, no conclusion from S2/S3.")
+          lines.append("- NOTE: CHECK() in the test is FATAL (aborts the binary), so a failing test kills the full run at that point; per-test runs above are authoritative.")
+          lines.append("")
+          lines.append("## Full-run summary")
+          lines.append("")
+          for s in summary:
+              lines.append(f"- {s}")
+          if failed_names:
+              lines.append("- failed tests:")
+              for n in failed_names:
+                  lines.append(f"  - {n}")
+          lines.append("")
+          s2, s3 = per.get("MergeAsymmetricS2"), per.get("MergeAsymmetricS3")
+          ctrls = [per.get(n) for n in ("MergeSymmetricR1", "MergeSymmetricS1", "SplitS4")]
+          if cmake_code != "0":
+              overall = "BUILD FAILED (cmake)"
+          elif build_code != "0":
+              overall = "BUILD FAILED"
+          elif s2 is None and s3 is None:
+              overall = "INCONCLUSIVE (tests did not run)"
+          elif s2 == "0" and s3 == "0" and all(c == "0" for c in ctrls):
+              overall = "BUG CONFIRMED"
+          elif (s2 not in (None, "0") or s3 not in (None, "0")) and all(c == "0" for c in ctrls):
+              overall = "FINDING DEAD"
+          elif any(c not in (None, "0") for c in ctrls):
+              overall = "HARNESS WRONG (a control failed)"
+          else:
+              overall = "INCONCLUSIVE"
+          lines.append(f"## Overall: {overall}")
+          lines.append("")
+          lines.append("## Per-test log tails")
+          lines.append("")
+          for name, role in tests:
+              log = read(f"test-log-{name}.txt", "")
+              lines.append(f"### {name} (exit {per.get(name, 'MISSING')})")
+              lines.append("")
+              lines.append("```")
+              lines.extend(log.splitlines()[-20:])
+              lines.append("```")
+              lines.append("")
+          with open("RESULTS.md", "w") as f:
+              f.write("\n".join(lines))
+          print(f"RESULTS.md written, overall={overall}")
+          PYEOF
+          for f in test-log-full.txt build-log.txt cmake-log.txt test-log-MergeAsymmetricS2.txt test-log-MergeAsymmetricS3.txt test-log-MergeSymmetricR1.txt test-log-MergeSymmetricS1.txt test-log-SplitS4.txt; do
+            [ -f "$f" ] || echo "(missing)" > "$f"
+          done
+          cp test-log-full.txt test-log.txt
+          git add RESULTS.md STARTED.md test-log.txt build-log.txt cmake-log.txt test-log-*.txt 2>/dev/null || true
+          git commit -m "T1-1 run ${{ github.run_id }} results [skip ci]" || echo "nothing to commit"
+          git push origin results
+
+      - name: Upload logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t1-1-logs
+          if-no-files-found: ignore
+          path: |
+            test-log-full.txt
+            test-log-*.txt
+            build-log.txt
+            cmake-log.txt
+            RESULTS.md
+
+      - name: Fail job if build or test failed
+        if: always()
+        run: |
+          build_code="$(cat build-exit-code.txt 2>/dev/null || echo MISSING)"
+          test_code="$(cat test-exit-code.txt 2>/dev/null || echo MISSING)"
+          echo "build=$build_code test=$test_code"
+          [ "$build_code" = "0" ] && [ "$test_code" = "0" ]
