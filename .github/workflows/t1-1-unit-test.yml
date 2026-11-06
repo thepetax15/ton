@@ -6,6 +6,16 @@ name: T1-1 unit test (compare_global_balance)
 # resolves to function names.
 # Results are committed to branch 'results' (RESULTS.md + full logs) so they
 # can be read without API auth. Trigger: push to main, or manual dispatch.
+#
+# RUN #6 LESSON (workflow v4): the "Publish STARTED marker" step switches
+# this checkout to the 'results' branch, whose patches/ is STALE (branched
+# at run #1: original test patch, no smoke test, validator tag 0x11, no
+# [t1-1] markers). Run #6 therefore tested the ORIGINAL fixture and its
+# crash could not be localized. The "Apply T1-1 patches" step now restores
+# patches/ from origin/t1-1-unit-test first and fails loudly on a stale
+# patch (grep tripwires). A "List registered tests" step (nm count, expect
+# 18) and a "Resolve crash offsets" step (addr2line) catch the same class
+# of silent staleness in future runs.
 
 on:
   push:
@@ -92,6 +102,20 @@ jobs:
       - name: Apply T1-1 patches
         run: |
           set -euo pipefail
+          # RUN #6 LESSON (root cause of the missing smoke test + missing
+          # [t1-1] markers): the "Publish STARTED marker" step switches this
+          # checkout to the 'results' branch, whose patches/ is STALE (it was
+          # branched at run #1 and still holds the ORIGINAL test patch: no
+          # smoke test, validator tag 0x11, no markers). Restoring patches/
+          # from the trigger branch BEFORE applying is what makes run #7 use
+          # the current patch. The greps below fail the job loudly if the
+          # patch is ever stale again instead of silently testing old code.
+          git fetch origin t1-1-unit-test
+          git checkout origin/t1-1-unit-test -- patches/
+          grep -q FetchMcStateSmoke patches/test-global-balance-calculator.cpp.patch \
+            || { echo "STALE TEST PATCH: no FetchMcStateSmoke" >&2; exit 1; }
+          grep -q "store_long_bool(0x12, 8)" patches/test-global-balance-calculator.cpp.patch \
+            || { echo "STALE TEST PATCH: validator tag is not 0x12" >&2; exit 1; }
           cd ton
           git rev-parse HEAD
           git apply ../patches/global-balance-calculator-internal.hpp.patch
@@ -137,6 +161,41 @@ jobs:
           set -e
           tail -30 test-log-full.txt || true
 
+      - name: List registered tests
+        # Run #6 lesson: the smoke test was silently ABSENT from the binary
+        # (stale patch) and nothing in the workflow noticed. Count the
+        # registration objects in the linked binary WITHOUT running it:
+        # 18 = 12 old + 6 new. Non-fatal: prints the count either way.
+        run: |
+          BIN=./ton/build/test/validator/test-global-balance-calculator
+          if [ -x "$BIN" ]; then
+            nm "$BIN" 2>/dev/null | grep -c "test_instance_Test_GlobalBalanceCalculator" > test-count.txt || echo 0 > test-count.txt
+            echo "registered tests: $(cat test-count.txt) (expect 18)"
+            nm "$BIN" 2>/dev/null | grep "test_instance_Test_GlobalBalanceCalculator" > test-list.txt || true
+            cat test-list.txt
+          else
+            echo "binary missing" > test-count.txt
+            echo "(binary missing)" > test-list.txt
+          fi
+
+      - name: Resolve crash offsets
+        # Run #6 lesson: the backtrace showed only raw offsets (+0x1e92a0)
+        # and the libbacktrace section was empty. Resolve every faulting
+        # offset in the test logs to function + file:line with addr2line
+        # (RelWithDebInfo keeps the symbols). Non-fatal.
+        run: |
+          BIN=./ton/build/test/validator/test-global-balance-calculator
+          : > crash-symbols.txt
+          if [ -x "$BIN" ]; then
+            for off in $(grep -rhoE "\(\+0x[0-9a-f]+\)" test-log-*.txt 2>/dev/null | sort -u | sed 's/[()+]//g' || true); do
+              echo "== $off ==" >> crash-symbols.txt
+              addr2line -e "$BIN" -f -C "$off" >> crash-symbols.txt 2>&1 || true
+            done
+          else
+            echo "(binary missing)" >> crash-symbols.txt
+          fi
+          cat crash-symbols.txt
+
       - name: Publish results to branch 'results'
         if: always()
         env:
@@ -156,7 +215,7 @@ jobs:
           # path whether or not the marker step ran, and no --force
           # anywhere for the same reason as above.
           mkdir -p /tmp/t1-run-logs
-          for f in STARTED.md test-log-full.txt test-log-*.txt build-log.txt cmake-log.txt per-test-codes.txt cmake-exit-code.txt build-exit-code.txt test-exit-code.txt; do
+          for f in STARTED.md test-log-full.txt test-log-*.txt build-log.txt cmake-log.txt per-test-codes.txt cmake-exit-code.txt build-exit-code.txt test-exit-code.txt test-list.txt test-count.txt crash-symbols.txt; do
             [ -f "$f" ] && mv "$f" /tmp/t1-run-logs/
           done
           git fetch origin results 2>/dev/null || true
@@ -274,6 +333,18 @@ jobs:
               lines.extend(log.splitlines()[-20:])
               lines.append("```")
               lines.append("")
+          lines.append("## Registered tests (nm count, expect 18)")
+          lines.append("")
+          lines.append(f"- count: {read('test-count.txt', 'MISSING')}")
+          for l in read("test-list.txt", "").splitlines():
+              lines.append(f"- {l}")
+          lines.append("")
+          lines.append("## Crash offsets resolved (addr2line)")
+          lines.append("")
+          lines.append("```")
+          lines.extend(read("crash-symbols.txt", "(missing)").splitlines())
+          lines.append("```")
+          lines.append("")
           with open("RESULTS.md", "w") as f:
               f.write("\n".join(lines))
           print(f"RESULTS.md written, overall={overall}")
@@ -282,7 +353,7 @@ jobs:
             [ -f "$f" ] || echo "(missing)" > "$f"
           done
           cp test-log-full.txt test-log.txt
-          git add RESULTS.md STARTED.md test-log.txt build-log.txt cmake-log.txt test-log-*.txt 2>/dev/null || true
+          git add RESULTS.md STARTED.md test-log.txt build-log.txt cmake-log.txt test-log-*.txt test-list.txt test-count.txt crash-symbols.txt 2>/dev/null || true
           git commit -m "T1-1 run ${{ github.run_id }} results [skip ci]" || echo "nothing to commit"
           git push origin results
 
